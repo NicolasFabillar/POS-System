@@ -18,6 +18,15 @@ app.use(bodyParser.json());
 app.use(passport.initialize());
 app.use(multerConfig);
 
+app.get('/health', async (req, res) => {
+    try {
+        await connection.authenticate();
+        res.status(200).json({ status: 'ok', db: 'up' });
+    } catch (err) {
+        res.status(503).json({ status: 'error', db: 'down' });
+    }
+});
+
 app.use("/api/v1", cors, rateLimiter, routes);
 
 app.use(serverError);
@@ -37,6 +46,7 @@ connection
     })
     .catch((err) => {
         console.error(err);
+        process.exit(1);
     });
 
 const port = process.env.PORT || 3000;
