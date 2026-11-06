@@ -8,15 +8,11 @@ const moment = require('moment');
 const { Op } = require("sequelize");
 
 exports.approveRefund = async (req, res, next) => {
-  const { userId, userRole } = req
+  const { userId } = req
   const { status} = req.body
   const { orderId } = req.params;
 
   try {
-    if (userRole != "Admin") {
-        errorHandler("User is not an admin", 403)
-    }
-
     const order = await Orders.findByPk(orderId);
     
     if (!order) {
@@ -109,14 +105,17 @@ exports.approveRefund = async (req, res, next) => {
   }
 }
 
-// Find all Products that are active or inactive
+// Find all orders
 exports.findAllOrders = async (req, res, next) => {
-    const { userId, userRole } = req
     const {employeeId, startDate, endDate} = req.query;
 
     try {
-        if (userRole != "Admin") {
-            errorHandler("User is not an admin", 403)
+        if (employeeId) {
+            const employee = await Users.findOne({where: {id: employeeId}})
+
+            if (!employee) {
+                errorHandler(`Employee id not found`, 404);
+            }
         }
 
         const from = startDate
@@ -154,7 +153,8 @@ exports.findAllOrders = async (req, res, next) => {
                     model: Refunds,
                     as: 'orderRefund',
                     where: {status: "approved"},
-                    attributes: ["id", "refunded_amount", ]
+                    attributes: ["id", "refunded_amount", ],
+                    required: false
                 }
             ],
             attributes: ["id", "employee_id", "customer_name", "total_amount", "payment_method", "status", "createdAt"],
@@ -172,12 +172,10 @@ exports.findAllOrders = async (req, res, next) => {
 
             const formattedCreatedAt = formatTimestamp(createdAt);
 
-            const totalRefunded = orderRefund.length
-                ? orderRefund.reduce(
-                    (sum, refund) => sum + Number(refund.refunded_amount),
-                    0
-                )
-                : 0;
+            const totalRefunded = orderRefund.reduce(
+                (sum, refund) => sum + Number(refund.refunded_amount),
+                0
+            );
 
             return {
                 ...rest,
@@ -188,7 +186,27 @@ exports.findAllOrders = async (req, res, next) => {
             };
         });
 
-        return res.status(200).json({ status: true, formattedOrders })
+        const totalSales = formattedOrders.reduce(
+            (sum, order) => sum + order.totalAmountBeforeRefund,
+            0
+        );
+
+        const totalRefunded = formattedOrders.reduce(
+            (sum, order) => sum + order.totalRefunded,
+            0
+        );
+
+        const netSales = totalSales - totalRefunded;
+
+        return res.status(200).json({ 
+            status: true, 
+            details: {
+                totalSales,
+                totalRefunded,
+                netSales,
+            },
+            orders: formattedOrders,
+        })
     } catch (err) {
         next(err)
     }
@@ -213,6 +231,7 @@ exports.findOrderById = async (req, res, next) => {
                 as: 'orderRefund',
                 where: {status: "approved"},
                 attributes: ["id", "approved_by", "order_item_id", "refunded_amount", "refund_quantity", "refund_reason", "status"],
+                required: false
             },
             {
                 model: OrderItems,
@@ -337,14 +356,9 @@ async function getPaymentMethodSummary(paymentMethod, employeeId, from, to) {
 }
 
 exports.getSaleSummary = async (req, res, next) => {
-  const { userId, userRole } = req
   const {employeeId, startDate, endDate} = req.query;
 
   try {
-    if (userRole != "Admin") {
-        errorHandler("User is not an admin", 403)
-    }
-
     const from = startDate
         ? moment(startDate).startOf("day").toDate()
         : getStartOfToday();

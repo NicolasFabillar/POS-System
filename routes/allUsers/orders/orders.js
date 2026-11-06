@@ -1,19 +1,19 @@
 const express = require("express");
 const { body } = require("express-validator");
 const validation = require("../../../middlewares/route-validation");
-const isAuth = require("../../../middlewares/authorization");
 
 const {
     createOrder,
     payOrder,
     refundOrder,
-    refundAmount
+    refundAmount,
+    findAllOrdersCurrentUser,
+    findOrderById
 } = require("../../../controllers/allUsers/orders");
 
 const router = express.Router();
 
 router.post("/create",
-    isAuth,
     [
         body("customerName").notEmpty().isString(),
         body("orderItems")
@@ -43,7 +43,6 @@ router.post("/create",
 );
 
 router.put('/:orderId/payOrder', 
-    isAuth,
     [
         body("paymentMethod").notEmpty().isString().isIn(["cash", "card", "e-wallet"]),
         body("amountTendered").optional().isInt(),
@@ -53,7 +52,6 @@ router.put('/:orderId/payOrder',
 )
 
 router.put("/:orderId/refund",
-    isAuth,
     [
         body("customerName").notEmpty().isString(),
         body("refundReason").notEmpty().isString(),
@@ -84,8 +82,15 @@ router.put("/:orderId/refund",
 );
 
 router.get('/:orderId/refundAmount', 
-    isAuth,
     refundAmount
+)
+
+router.get('/show-all', 
+    findAllOrdersCurrentUser
+)
+
+router.get('/:orderId/search', 
+    findOrderById
 )
 
 module.exports = router;

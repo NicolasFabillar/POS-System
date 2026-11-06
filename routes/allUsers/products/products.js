@@ -1,7 +1,6 @@
 const express = require("express");
 const { body } = require("express-validator");
 const validation = require("../../../middlewares/route-validation");
-const isAuth = require("../../../middlewares/authorization");
 
 const {
     findAllProducts,
@@ -12,17 +11,14 @@ const {
 const router = express.Router();
 
 router.get('/show-all', 
-    isAuth,
     findAllProducts
 )
 
 router.get('/:productId/search', 
-    isAuth,
     findProductById
 )
 
 router.get('/:sku/searchSKU', 
-    isAuth,
     findProductBySKU
 )
 

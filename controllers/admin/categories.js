@@ -3,14 +3,9 @@ const errorHandler = require("../../util/errorHandler")
 const parseQueryParams = require("../../util/parseQueryParams")
 
 exports.createCategory = async (req, res, next) => {
-  const { userRole, userId} = req
   const { name } = req.body
 
   try {
-    if (userRole != "Admin") {
-        errorHandler("User is not an admin", 403)
-    }
-
     const existingCategory = await Categories.findOne({
         where: {
             name : name
@@ -36,10 +31,6 @@ exports.updateCategory = async (req, res, next) => {
   const { name } = req.body
 
   try {
-    if (userRole != "Admin") {
-        errorHandler("User is not an admin", 403)
-    }
-    
     const category = await Categories.findOne({
       where: {
         id: categoryID,

@@ -3,6 +3,8 @@ const { Products, ProductMovements, Users, Orders, OrderItems, Refunds} = requir
 const errorHandler = require("../../util/errorHandler")
 const parseQueryParams = require("../../util/parseQueryParams")
 const { Op } = require("sequelize");
+const moment = require('moment');
+const {getStartOfToday, getCurrentDate, formatTimestamp} = require("../../util/formatTimestamp")
 
 exports.createOrder = async (req, res, next) => {
   const { userId, userRole } = req
@@ -78,7 +80,9 @@ exports.createOrder = async (req, res, next) => {
         })
     );
 
-    return res.status(200).json({ status: true })
+    const orderDetails = {orderId: createdOrder.id, totalAmount: createdOrder.total_amount, status: createdOrder.status}
+
+    return res.status(200).json({ status: true, orderDetails})
   } catch (err) {
     next(err)
   }
@@ -247,6 +251,197 @@ exports.refundAmount = async (req, res, next) => {
 
     return res.status(200).json({ status: true, refundAmount})
   } catch (err) {  
+    next(err)
+  }
+}
+
+// Find all orders
+exports.findAllOrdersCurrentUser = async (req, res, next) => {
+    const { userId, userRole } = req
+    const {startDate, endDate} = req.query;
+
+    try {
+        const from = startDate
+            ? moment(startDate).startOf("day").toDate()
+            : getStartOfToday();
+
+        const to = endDate
+            ? moment(endDate).endOf("day").toDate()
+            : getCurrentDate();
+
+        const { where, limit, offset, order } = parseQueryParams(
+            req,
+            ["createdAt", "total_amount"],
+            ["status", "payment_method"]
+        )
+
+        where.employee_id = userId;
+
+       const allOrders = await Orders.findAll({
+            where: {
+                ...where,
+                createdAt: {
+                    [Op.between]: [from, to],
+                },
+            },
+            limit,
+            offset,
+            order,
+            include: [
+                {
+                    model: Refunds,
+                    as: 'orderRefund',
+                    where: { status: "approved" },
+                    attributes: ["id", "refunded_amount"],
+                    required: false
+                }
+            ],
+            attributes: [
+                "id",
+                "employee_id",
+                "customer_name",
+                "total_amount",
+                "payment_method",
+                "status",
+                "createdAt"
+            ],
+        });
+
+        const formattedOrders = allOrders.map((order) => {
+            const data = order.toJSON();
+
+            const {
+                total_amount,
+                orderRefund = [],
+                createdAt,
+                ...rest
+            } = data;
+
+            const formattedCreatedAt = formatTimestamp(createdAt);
+
+            const totalRefunded = orderRefund.reduce(
+                (sum, refund) => sum + Number(refund.refunded_amount),
+                0
+            );
+
+            return {
+                ...rest,
+                createdAt: formattedCreatedAt,
+                totalAmountBeforeRefund: Number(total_amount),
+                totalRefunded,
+                totalAmount: Number(total_amount) - totalRefunded,
+            };
+        });
+
+        return res.status(200).json({ status: true, formattedOrders })
+    } catch (err) {
+        next(err)
+    }
+}
+
+exports.findOrderById = async (req, res, next) => {
+    const { userId } = req
+  const { orderId } = req.params
+
+  try {
+    const order = await Orders.findOne({
+      where: {
+        id: orderId,
+        employee_id: userId
+      },
+      include: [
+            {
+                model: Users,
+                as: 'orderCreatedBy',
+                attributes: ["id", "first_name", "last_name"]
+            },
+            {
+                model: Refunds,
+                as: 'orderRefund',
+                where: {status: "approved"},
+                attributes: ["id", "approved_by", "order_item_id", "refunded_amount", "refund_quantity", "refund_reason", "status"],
+                required: false
+            },
+            {
+                model: OrderItems,
+                as: 'orderItems',
+                attributes: ["id", "quantity", "price_at_sale", "subtotal", "status"],
+                include: [
+                    {
+                        model: Products,
+                        as: 'orderProduct',
+                        attributes: ["id", "name", "sku"],
+                    }
+                ]
+            }
+        ],
+        attributes: ["id", "employee_id", "customer_name", "total_amount", "payment_method", "status", "createdAt"],
+    })
+
+    if (!order) {
+      errorHandler("Order not found", 404)
+    }
+
+    const data = order.toJSON();
+
+    const {
+        total_amount,
+        createdAt,
+        orderItems = [],
+        orderRefund = [],
+        ...rest
+    } = data;
+
+    const formattedOrder = {
+        ...rest,
+        createdAt: formatTimestamp(createdAt),
+        totalAmountBeforeRefund: Number(total_amount),
+        totalRefunded: orderRefund.reduce(
+            (sum, refund) => sum + Number(refund.refunded_amount),
+            0
+        ),
+        totalAmount:
+            Number(total_amount) -
+            orderRefund.reduce(
+                (sum, refund) => sum + Number(refund.refunded_amount),
+                0
+            ),
+
+        orderItems: orderItems.map(item => {
+            const refunds = orderRefund.filter(
+                refund => refund.order_item_id === item.id
+            );
+
+            const refundedQuantity = refunds.reduce(
+                (sum, refund) => sum + refund.refund_quantity,
+                0
+            );
+
+            const refundedAmount = refunds.reduce(
+                (sum, refund) => sum + Number(refund.refunded_amount),
+                0
+            );
+
+            return {
+                ...item,
+                price_at_sale: Number(item.price_at_sale),
+                subtotal: Number(item.subtotal),
+
+                quantityPurchased: item.quantity,
+                quantityRefunded: refundedQuantity,
+                quantityRemaining: item.quantity - refundedQuantity,
+
+                subtotalBeforeRefund: Number(item.subtotal),
+                refundedAmount,
+                subtotal: Number(item.subtotal) - refundedAmount,
+
+                refunds
+            };
+        })
+    };
+
+    return res.status(200).json({ status: true, formattedOrder})
+  } catch (err) {
     next(err)
   }
 }

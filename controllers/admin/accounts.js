@@ -6,14 +6,7 @@ const moment = require('moment');
 const { Op } = require("sequelize");
 
 exports.showAllUsers = async (req, res, next) => {
-  const { userId, userRole } = req
-  const { orderId } = req.params;
-
   try {
-    if (userRole != "Admin") {
-        errorHandler("User is not an admin", 403)
-    }
-
     const { where, limit, offset, order } = parseQueryParams(
         req,
         ["role", "first_name", "last_name"],
@@ -39,14 +32,9 @@ exports.showAllUsers = async (req, res, next) => {
 }
 
 exports.findUserById = async (req, res, next) => {
-  const { userRole } = req
   const { userId } = req.params;
 
   try {
-    if (userRole != "Admin") {
-        errorHandler("User is not an admin", 403)
-    }
-
     const user = await Users.findOne({
         where: {
             id: userId

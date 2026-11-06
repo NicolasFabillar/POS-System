@@ -1,7 +1,6 @@
 const express = require("express");
 const { body } = require("express-validator");
 const validation = require("../../../middlewares/route-validation");
-const isAuth = require("../../../middlewares/authorization");
 
 const {
     findProductMovementHistory
@@ -10,7 +9,6 @@ const {
 const router = express.Router();
 
 router.get('/:productId/show-all', 
-    isAuth,
     findProductMovementHistory
 )
 

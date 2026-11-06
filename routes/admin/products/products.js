@@ -1,7 +1,6 @@
 const express = require("express");
 const { body } = require("express-validator");
 const validation = require("../../../middlewares/route-validation");
-const isAuth = require("../../../middlewares/authorization");
 
 const {
     createProduct,
@@ -15,7 +14,6 @@ const {
 const router = express.Router();
 
 router.post("/create",
-    isAuth,
     [
         body("name").notEmpty().isString(),
         body("sku").notEmpty().isString(),
@@ -30,7 +28,6 @@ router.post("/create",
 );
 
 router.put('/:productId/update', 
-    isAuth,
     [
         body("name").optional().isString(),
         body("sku").optional().isString(),
@@ -46,22 +43,18 @@ router.put('/:productId/update',
 )
 
 router.delete('/:productId/delete', 
-    isAuth,
     deleteProduct
 )
 
 router.get('/show-all', 
-    isAuth,
     findAllProducts
 )
 
 router.get('/:productId/search', 
-    isAuth,
     findProductById
 )
 
 router.get('/low-stock', 
-    isAuth,
     findLowStockProducts
 )
 

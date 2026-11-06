@@ -8,14 +8,9 @@ const moment = require('moment');
 // Find all the changes in a specific product history
 exports.findProductMovementHistory = async (req, res, next) => {
     const { productId } = req.params;
-    const { userId, userRole } = req;
     const {employeeId, startDate, endDate} = req.query;
 
     try {
-        if (userRole != "Admin") {
-            errorHandler("User is not an admin", 403)
-        }
-        
         const from = startDate
             ? moment(startDate).startOf("day").toDate()
             : getStartOfToday();

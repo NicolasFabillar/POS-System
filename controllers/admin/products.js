@@ -5,14 +5,10 @@ const parseQueryParams = require("../../util/parseQueryParams")
 const { Op, col, where: sequelizeWhere } = require("sequelize");
 
 exports.createProduct = async (req, res, next) => {
-  const { userId, userRole } = req
+  const { userId } = req
   const { name, sku, categoryId, description, quantity, lowStockThreshold, price } = req.body
 
   try {
-    if (userRole != "Admin") {
-        errorHandler("User is not an admin", 403)
-    }
-
     const existingProduct = await Products.findOne({
         where: {
           [Op.or]: [
@@ -59,14 +55,10 @@ exports.createProduct = async (req, res, next) => {
 // This API should be used only for creating corrections on the product. For restocks and other stock movement use the appropriate API.
 exports.updateProduct = async (req, res, next) => {
   const { productId } = req.params
-  const { userId, userRole } = req
+  const { userId } = req
   const { name, sku, categoryId, description, quantity, lowStockThreshold, price, editReason } = req.body
 
   try {
-    if (userRole != "Admin") {
-      errorHandler("User is not an admin", 403)
-    }
-
     const product = await Products.findOne({
       where: {
         id: productId,

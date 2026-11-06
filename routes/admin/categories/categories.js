@@ -1,7 +1,6 @@
 const express = require("express");
 const { body } = require("express-validator");
 const validation = require("../../../middlewares/route-validation");
-const isAuth = require("../../../middlewares/authorization");
 
 const {
     createCategory,
@@ -12,7 +11,6 @@ const {
 const router = express.Router();
 
 router.post("/create",
-    isAuth,
     [
         body("name").notEmpty().isString(),
     ],
@@ -21,7 +19,6 @@ router.post("/create",
 );
 
 router.put('/:categoryID/update', 
-    isAuth,
     [
         body("name").optional().isString(),
     ],
@@ -30,7 +27,6 @@ router.put('/:categoryID/update',
 )
 
 router.get('/show-all', 
-    isAuth,
     findAllCategories
 )
 
