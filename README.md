@@ -1,4 +1,4 @@
-# Inventory Tracker
+# POS System
 
 A Node.js/Express REST API for inventory and sales management, built with Sequelize and MySQL. It models the backend of a small retail or point-of-sale operation: products, stock, orders, and refunds, with role-based access control and a full audit trail of every stock change.
 
